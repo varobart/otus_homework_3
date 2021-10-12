@@ -16,6 +16,6 @@ set(CMAKE_CXX_STANDARD 17)
 
 add_subdirectory(src)
 
-#install(TARGETS async RUNTIME DESTINATION bin)
+install(TARGETS async RUNTIME DESTINATION bin)
 include(CPack)
 
