@@ -15,33 +15,32 @@
 #include <utility>
 #include <vector>
 
-namespace
-{
-class Logger
-{
+namespace {
+class Logger {
 public:
-    Logger();
-    ~Logger();
+  Logger();
+  ~Logger();
 
 private:
-    static void console_logger();
-    static void file_logger();
+  static void console_logger();
+  static void file_logger();
 
-    static std::atomic<bool> s_bStopWorkers;
-    static std::array<std::thread, 3> g_workerThreads;
+  static std::atomic<bool> s_bStopWorkers;
+  static std::array<std::thread, 3> g_workerThreads;
 
 public:
-    static std::condition_variable g_con_cv;
-    static std::mutex g_consoleQueueMtx;
-    static std::queue<std::string> g_consoleLogQueue;
+  static std::condition_variable g_con_cv;
+  static std::mutex g_consoleQueueMtx;
+  static std::queue<std::string> g_consoleLogQueue;
 
-    static std::condition_variable g_file_cv;
-    static std::mutex g_fileQueueMtx;
-    static std::queue<std::pair<std::string, std::string>> g_fileLogQueue;
+  static std::condition_variable g_file_cv;
+  static std::mutex g_fileQueueMtx;
+  static std::queue<std::pair<std::string, std::string>> g_fileLogQueue;
 };
 
 std::atomic<bool> Logger::s_bStopWorkers = false;
-std::array<std::thread, 3> Logger::g_workerThreads = {std::thread(), std::thread(), std::thread()};
+std::array<std::thread, 3> Logger::g_workerThreads = {
+    std::thread(), std::thread(), std::thread()};
 std::condition_variable Logger::g_con_cv = {};
 std::mutex Logger::g_consoleQueueMtx = {};
 std::queue<std::string> Logger::g_consoleLogQueue = {};
@@ -49,24 +48,20 @@ std::condition_variable Logger::g_file_cv = {};
 std::mutex Logger::g_fileQueueMtx = {};
 std::queue<std::pair<std::string, std::string>> Logger::g_fileLogQueue = {};
 
+Logger::Logger() {
+  std::array<void (*)(), 3> aLoggerFuncs = {console_logger, file_logger,
+                                            file_logger};
 
-Logger::Logger()
-{
-    std::array<void (*)(), 3> aLoggerFuncs = {console_logger,
-                                              file_logger,
-                                              file_logger};
-
-    for (int idx = 0; idx < 3; ++idx) {
-        std::thread t(aLoggerFuncs[idx]);
-        g_workerThreads[idx] = std::move(t);
-    }
+  for (int idx = 0; idx < 3; ++idx) {
+    std::thread t(aLoggerFuncs[idx]);
+    g_workerThreads[idx] = std::move(t);
+  }
 }
 
-Logger::~Logger()
-{
-    Logger::s_bStopWorkers = true;
-    for (auto& thr : g_workerThreads)
-        thr.join();
+Logger::~Logger() {
+  Logger::s_bStopWorkers = true;
+  for (auto &thr : g_workerThreads)
+    thr.join();
 }
 
 // use here producer/consumer pattern
@@ -75,10 +70,11 @@ void Logger::console_logger() {
     std::string logStr;
     {
       std::unique_lock lock(g_consoleQueueMtx);
-      g_con_cv.wait(lock, []() { return !g_consoleLogQueue.empty() || s_bStopWorkers; });
+      g_con_cv.wait(
+          lock, []() { return !g_consoleLogQueue.empty() || s_bStopWorkers; });
 
       if (g_consoleLogQueue.empty() && s_bStopWorkers)
-          break;
+        break;
 
       logStr = std::move(g_consoleLogQueue.front());
       g_consoleLogQueue.pop();
@@ -94,10 +90,11 @@ void Logger::file_logger() {
     std::pair<std::string, std::string> nameLogPair;
     {
       std::unique_lock lock(g_fileQueueMtx);
-      g_file_cv.wait(lock, []() { return !g_fileLogQueue.empty() || s_bStopWorkers; });
+      g_file_cv.wait(
+          lock, []() { return !g_fileLogQueue.empty() || s_bStopWorkers; });
 
       if (g_fileLogQueue.empty() && s_bStopWorkers)
-          break;
+        break;
 
       nameLogPair = std::move(g_fileLogQueue.front());
       g_fileLogQueue.pop();
@@ -196,38 +193,33 @@ void Bulk::process(const std::string &cmd) {
 }
 } // anonymous namespace
 
-namespace async
-{
-handle_t connect(std::size_t bulk)
-{
-    Bulk* pBulk = new Bulk(bulk);
-    return static_cast<void*>(pBulk);
+namespace async {
+handle_t connect(std::size_t bulk) {
+  Bulk *pBulk = new Bulk(bulk);
+  return static_cast<void *>(pBulk);
 }
 
-void disconnect(handle_t handle)
-{
-    auto pBulk = static_cast<Bulk*>(handle);
-    if (!pBulk)
-        return;
+void disconnect(handle_t handle) {
+  auto pBulk = static_cast<Bulk *>(handle);
+  if (!pBulk)
+    return;
 
-    pBulk->flush();
-    delete pBulk;
-    pBulk = nullptr;
+  pBulk->flush();
+  delete pBulk;
+  pBulk = nullptr;
 }
 
-void receive(handle_t handle, const char* data, std::size_t size)
-{
-    auto pBulk = static_cast<Bulk*>(handle);
-    if (!pBulk)
-        return;
+void receive(handle_t handle, const char *data, std::size_t size) {
+  auto pBulk = static_cast<Bulk *>(handle);
+  if (!pBulk)
+    return;
 
-    std::string str(data, size);
-    std::stringstream stream(str);
+  std::string str(data, size);
+  std::stringstream stream(str);
 
-    std::string cmd;
-    while (std::getline(stream, cmd))
-        if (!cmd.empty())
-            pBulk->process(cmd);
+  std::string cmd;
+  while (std::getline(stream, cmd))
+    if (!cmd.empty())
+      pBulk->process(cmd);
 }
-} // async namespace
-
+} // namespace async
